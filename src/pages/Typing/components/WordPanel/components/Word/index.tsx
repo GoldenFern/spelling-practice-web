@@ -54,6 +54,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const [showTipAlert, setShowTipAlert] = useState(false)
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
 
+  // 本项目定制：首字母默写模式下首字母已给出，打字时自动跳过
+  const givenLetterCount = wordDictationConfig.isOpen && wordDictationConfig.type === 'firstLetter' ? 1 : 0
+
   useEffect(() => {
     // run only when word changes
     let headword = ''
@@ -70,6 +73,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     newWordState.letterStates = new Array(headword.length).fill('normal')
     newWordState.startTime = getUtcStringForMixpanel()
     newWordState.randomLetterVisible = headword.split('').map(() => Math.random() > 0.4)
+    if (givenLetterCount > 0 && headword.length > 0) {
+      newWordState.inputWord = headword[0]
+    }
     setWordState(newWordState)
   }, [word, setWordState])
 
@@ -131,10 +137,10 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   )
 
   useEffect(() => {
-    if (wordState.inputWord.length === 0 && state.isTyping) {
+    if (wordState.inputWord.length === givenLetterCount && state.isTyping) {
       wordPronunciationIconRef.current?.play && wordPronunciationIconRef.current?.play()
     }
-  }, [state.isTyping, wordState.inputWord.length, wordPronunciationIconRef.current?.play])
+  }, [state.isTyping, wordState.inputWord.length, givenLetterCount, wordPronunciationIconRef.current?.play])
 
   const getLetterVisible = useCallback(
     (index: number) => {
@@ -181,7 +187,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
      * 目前不影响生产环境，猜测是因为开发环境下 react 会两次调用 useEffect 从而展示了这个 warning
      * 但这终究是一个 bug，需要修复
      */
-    if (wordState.hasWrong || inputLength === 0 || wordState.displayWord.length === 0) {
+    if (wordState.hasWrong || inputLength <= givenLetterCount || wordState.displayWord.length === 0) {
       return
     }
 
@@ -203,6 +209,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
         // 完成输入时
         setWordState((state) => {
           state.letterStates[inputLength - 1] = 'correct'
+          if (givenLetterCount > 0) {
+            state.letterStates[0] = 'correct'
+          }
           state.isFinished = true
           state.endTime = getUtcStringForMixpanel()
         })
@@ -246,7 +255,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     if (wordState.hasWrong) {
       const timer = setTimeout(() => {
         setWordState((state) => {
-          state.inputWord = ''
+          state.inputWord = givenLetterCount > 0 && state.displayWord.length > 0 ? state.displayWord[0] : ''
           state.letterStates = new Array(state.letterStates.length).fill('normal')
           state.hasWrong = false
         })
