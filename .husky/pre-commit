@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-yarn run lint-staged
-yarn run eslint . --fix
-yarn run prettier --write .
+# 本项目定制：Windows 下没有全局 yarn，改用 corepack；
+# 只对暂存文件做格式化检查，避免上游的 eslint . --fix / prettier --write . 全量改写。
+corepack yarn run lint-staged

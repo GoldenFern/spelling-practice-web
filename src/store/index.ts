@@ -16,13 +16,13 @@ import type { ReviewRecord } from '@/utils/db/record'
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
-export const currentDictIdAtom = atomWithStorage('currentDict', 'cet4')
+export const currentDictIdAtom = atomWithStorage('currentDict', 'spellingpractice')
 export const currentDictInfoAtom = atom<Dictionary>((get) => {
   const id = get(currentDictIdAtom)
   let dict = idDictionaryMap[id]
-  // 如果 dict 不存在，则返回 cet4. Typing 中会检查 DictId 是否存在，如果不存在则会重置为 cet4
+  // 如果 dict 不存在，则返回本项目词库。Typing 中会检查 DictId 是否存在，如果不存在则会重置
   if (!dict) {
-    dict = idDictionaryMap.cet4
+    dict = idDictionaryMap.spellingpractice
   }
   return dict
 })
@@ -103,9 +103,9 @@ export const infoPanelStateAtom = atom<InfoPanelState>({
 })
 
 export const wordDictationConfigAtom = atomForConfig('wordDictationConfig', {
-  isOpen: false,
-  type: 'hideAll' as WordDictationType,
-  openBy: 'auto' as WordDictationOpenBy,
+  isOpen: true,
+  type: 'firstLetter' as WordDictationType,
+  openBy: 'user' as WordDictationOpenBy,
 })
 
 export const dismissStartCardDateAtom = atomWithStorage<Date | null>(DISMISS_START_CARD_DATE_KEY, null)

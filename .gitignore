@@ -34,3 +34,7 @@ stats.html
 /blob-report/
 /playwright/.cache/
 playwright-report
+
+# SpellingPractice 定制：由主仓库 scripts/build_webapp_dict.py 生成
+/public/dicts/spellingpractice.json
+/public/dicts/spellingpractice.meta.json

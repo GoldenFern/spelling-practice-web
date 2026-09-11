@@ -4155,39 +4155,29 @@ const indonesianDicts: DictionaryResource[] = [
   },
 ]
 
+// 雅思听力拼写练习（本项目定制词库，由 scripts/build_webapp_dict.py 从 data/words.json 生成）
+const spellingPracticeDicts: DictionaryResource[] = [
+  {
+    id: 'spellingpractice',
+    name: '雅思听力拼写练习',
+    description: '9 套 450 词，与纸面练习册一一对应',
+    category: '雅思拼写',
+    tags: ['雅思', '听力', '拼写'],
+    url: '/dicts/spellingpractice.json',
+    length: 450,
+    language: 'en',
+    languageCategory: 'en',
+  },
+]
+
 /**
  * Built-in dictionaries in an array.
  * Why arrays? Because it keeps the order across browsers.
+ *
+ * 本项目定制：只保留自己的词库，其余上游词库不再注册（词典文件仍在 public/dicts，
+ * 构建脚本会裁剪，避免界面里出现无关词典）。
  */
-export const dictionaryResources: DictionaryResource[] = [
-  ...chinaExam,
-  ...internationalExam,
-  ...childrenEnglish,
-  ...programming,
-  ...japaneseExam,
-  ...germanExam,
-  ...kazakhHapinDicts,
-  ...indonesianDicts,
-
-  // {
-  //   id: 'zhtest',
-  //   name: '中文测试',
-  //   description: '中文测试词库',
-  //   category: '测试',
-  //   url: '/dicts/chinese_test.json',
-  //   length: 27,
-  //   language: 'zh',
-  // },
-  // {
-  //   id: 'jptest',
-  //   name: '日文测试',
-  //   description: '日文测试词库',
-  //   category: '测试',
-  //   url: '/dicts/japanese_test.json',
-  //   length: 20,
-  //   language: 'ja',
-  // },
-]
+export const dictionaryResources: DictionaryResource[] = [...spellingPracticeDicts]
 
 export const dictionaries: Dictionary[] = dictionaryResources.map((resource) => ({
   ...resource,

@@ -1,6 +1,7 @@
 export const EXPLICIT_SPACE = '␣'
 
-export const CHAPTER_LENGTH = 20
+// 本项目定制：每套 50 词，一个章节对应纸面练习册的一套
+export const CHAPTER_LENGTH = 50
 
 export const DISMISS_START_CARD_DATE_KEY = 'dismissStartCardDate'
 

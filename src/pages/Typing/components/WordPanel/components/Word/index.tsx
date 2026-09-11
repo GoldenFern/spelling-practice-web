@@ -142,6 +142,12 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
         if (wordDictationConfig.type === 'hideAll') return false
 
         const letter = wordState.displayWord[index]
+
+        // 定制模式：只显示首字母，其余字母留空（与纸面练习册一致）
+        if (wordDictationConfig.type === 'firstLetter') {
+          return index === 0 || !/[a-zA-Z]/.test(letter)
+        }
+
         if (wordDictationConfig.type === 'hideVowel') {
           return vowelLetters.includes(letter.toUpperCase()) ? false : true
         }
