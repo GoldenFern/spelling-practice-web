@@ -24,6 +24,7 @@ import {
 import type { Word } from '@/typings'
 import { CTRL, getUtcStringForMixpanel } from '@/utils'
 import { useSaveWordRecord } from '@/utils/db'
+import { ratingFromAttempt, updateSrsCard } from '@/utils/db/srs'
 import { useAtomValue } from 'jotai'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -47,6 +48,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const [isHoveringWord, setIsHoveringWord] = useState(false)
   const currentLanguage = useAtomValue(currentDictInfoAtom).language
   const currentLanguageCategory = useAtomValue(currentDictInfoAtom).languageCategory
+  const currentDictInfo = useAtomValue(currentDictInfoAtom)
   const currentChapter = useAtomValue(currentChapterAtom)
 
   const [showTipAlert, setShowTipAlert] = useState(false)
@@ -274,6 +276,12 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
         letterTimeArray: wordState.letterTimeArray,
         letterMistake: wordState.letterMistake,
       })
+
+      // 本项目定制：更新 FSRS 记忆卡片
+      const letterTimeArray = wordState.letterTimeArray
+      const elapsedMs = letterTimeArray.length > 1 ? letterTimeArray[letterTimeArray.length - 1] - letterTimeArray[0] : 0
+      const rating = ratingFromAttempt({ wrongCount: wordState.wrongCount, elapsedMs })
+      void updateSrsCard(word.name, currentDictInfo.id, rating)
 
       onFinish()
     }

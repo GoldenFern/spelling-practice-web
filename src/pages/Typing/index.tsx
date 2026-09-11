@@ -3,6 +3,7 @@ import { DictChapterButton } from './components/DictChapterButton'
 import PronunciationSwitcher from './components/PronunciationSwitcher'
 import ResultScreen from './components/ResultScreen'
 import Speed from './components/Speed'
+import SrsReviewButton from './components/SrsReviewButton'
 import StartButton from './components/StartButton'
 import Switcher from './components/Switcher'
 import WordList from './components/WordList'
@@ -135,6 +136,7 @@ const App: React.FC = () => {
           <DictChapterButton />
           <PronunciationSwitcher />
           <Switcher />
+          <SrsReviewButton />
           <StartButton isLoading={isLoading} />
           <Tooltip content="跳过该词">
             <button

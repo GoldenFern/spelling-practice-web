@@ -1,5 +1,6 @@
 import { getUTCUnixTimestamp } from '../index'
 import type { Word } from '@/typings'
+import type { Card } from 'ts-fsrs'
 
 export interface IWordRecord {
   word: string
@@ -182,4 +183,19 @@ export class RevisionWordRecord implements IRevisionWordRecord {
     this.dict = dict
     this.errorCount = errorCount
   }
+}
+
+/**
+ * 本项目定制：FSRS 记忆状态，每个单词一行。
+ */
+export interface ISrsRecord {
+  id?: number
+  // 单词所属词典 id
+  dict: string
+  word: string
+  // 与 card.due 相同的顶层字段，用于建索引快速取到期队列
+  due: Date
+  // ts-fsrs 的卡片状态
+  card: Card
+  updatedAt: number
 }
