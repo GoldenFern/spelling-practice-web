@@ -116,6 +116,10 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
               state.inputWord = state.inputWord + updateAction.value
             })
           }
+          // 整词模式下不逐字母校验，手动补上机械键盘敲击音
+          if (isSubmitMode && updateAction.value !== ' ') {
+            playKeySound()
+          }
           break
 
         case 'delete':
@@ -123,13 +127,16 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
           setWordState((state) => {
             state.inputWord = state.inputWord.slice(0, Math.max(0, state.inputWord.length - updateAction.length))
           })
+          if (isSubmitMode) {
+            playKeySound()
+          }
           break
 
         default:
           console.warn('unknown update type', updateAction)
       }
     },
-    [isSubmitMode, submitResult, wordState.hasWrong, setWordState],
+    [isSubmitMode, playKeySound, submitResult, wordState.hasWrong, setWordState],
   )
 
   const handleHoverWord = useCallback((checked: boolean) => {
