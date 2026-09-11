@@ -21,7 +21,7 @@ import { useSaveChapterRecord } from '@/utils/db'
 import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import type React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
@@ -81,7 +81,8 @@ const App: React.FC = () => {
   // 本项目定制：开始/继续练习改由 KeyEventHandler 统一处理（按键同时开始并录入），
   // 避免全局监听器先触发重渲染、导致第一个按键丢失。
 
-  useEffect(() => {
+  // 本项目定制：切章/切词库时在绘制前完成章节状态切换，避免"看到新词的瞬间打字"丢首键
+  useLayoutEffect(() => {
     if (words !== undefined) {
       const initialIndex = isReviewMode && reviewModeInfo.reviewRecord?.index ? reviewModeInfo.reviewRecord.index : 0
 

@@ -171,7 +171,11 @@ export default function WordPanel() {
               </div>
             )}
             <div className="relative">
-              <WordComponent word={currentWord} onFinish={onFinish} key={wordComponentKey} />
+              <WordComponent
+                word={currentWord}
+                onFinish={onFinish}
+                key={`${state.chapterData.index}-${currentWord.name}-${wordComponentKey}`}
+              />
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
                 trans={currentWord.trans.join('；')}
