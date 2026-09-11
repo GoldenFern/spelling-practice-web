@@ -5,7 +5,7 @@ import { romajiToHiragana } from '@/utils/kana'
 import noop from '@/utils/noop'
 import type { Howl } from 'howler'
 import { useAtomValue } from 'jotai'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSound from 'use-sound'
 import type { HookOptions } from 'use-sound/dist/types'
 
@@ -38,14 +38,55 @@ export default function usePronunciationSound(word: string, isLoop?: boolean) {
   const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
   const loop = useMemo(() => (typeof isLoop === 'boolean' ? isLoop : pronunciationConfig.isLoop), [isLoop, pronunciationConfig.isLoop])
   const [isPlaying, setIsPlaying] = useState(false)
+  // 本项目定制：有道音频加载失败（断网等）时回退到浏览器内置语音
+  const isLocalFallbackRef = useRef(false)
 
-  const [play, { stop, sound }] = useSound(generateWordSoundSrc(word, pronunciationConfig.type), {
+  const speakLocal = useCallback(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    const utterance = new SpeechSynthesisUtterance(word)
+    utterance.lang = 'en-US'
+    utterance.volume = pronunciationConfig.volume
+    utterance.rate = pronunciationConfig.rate
+    utterance.addEventListener('start', () => setIsPlaying(true))
+    utterance.addEventListener('end', () => setIsPlaying(false))
+    utterance.addEventListener('error', () => setIsPlaying(false))
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
+  }, [word, pronunciationConfig.volume, pronunciationConfig.rate])
+
+  const handleLoadError = useCallback(() => {
+    isLocalFallbackRef.current = true
+  }, [])
+
+  const [playSound, { stop: stopSound, sound }] = useSound(generateWordSoundSrc(word, pronunciationConfig.type), {
     html5: true,
     format: ['mp3'],
     loop,
     volume: pronunciationConfig.volume,
     rate: pronunciationConfig.rate,
+    onloaderror: handleLoadError,
+    onplayerror: () => {
+      handleLoadError()
+      speakLocal()
+    },
   } as HookOptions)
+
+  const play = useCallback(() => {
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+    if (isLocalFallbackRef.current || offline) {
+      speakLocal()
+      return
+    }
+    playSound()
+  }, [playSound, speakLocal])
+
+  const stop = useCallback(() => {
+    stopSound()
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setIsPlaying(false)
+  }, [stopSound])
 
   useEffect(() => {
     if (!sound) return
@@ -77,6 +118,8 @@ export function usePrefetchPronunciationSound(word: string | undefined) {
 
   useEffect(() => {
     if (!word) return
+    // 离线时跳过预取，发音由内置语音兜底
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
 
     const soundUrl = generateWordSoundSrc(word, pronunciationConfig.type)
     if (soundUrl === '') return

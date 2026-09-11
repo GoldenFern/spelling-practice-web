@@ -1,58 +1,36 @@
 import type { TypingState } from '@/pages/Typing/store/type'
-import {
-  currentChapterAtom,
-  currentDictInfoAtom,
-  isOpenDarkModeAtom,
-  keySoundsConfigAtom,
-  phoneticConfigAtom,
-  pronunciationConfigAtom,
-  randomConfigAtom,
-} from '@/store'
-import type { InfoPanelType } from '@/typings'
-import type { PronunciationType } from '@/typings'
-import { useAtomValue } from 'jotai'
-import mixpanel from 'mixpanel-browser'
+import type { InfoPanelType, PronunciationType } from '@/typings'
 import { useCallback } from 'react'
+
+/**
+ * 本项目定制：上游使用 Mixpanel 做匿名统计，离线或国内网络下会挂起请求。
+ * 这里保留完全相同的导出接口，但不再发送任何数据。
+ */
 
 export type starAction = 'star' | 'dismiss'
 
-export function recordStarAction(action: starAction) {
-  const props = {
-    action,
-  }
-  mixpanel.track('star', props)
+export function recordStarAction(_action: starAction) {
+  // no-op
 }
 
 export type openInfoPanelLocation = 'footer' | 'resultScreen'
-export function recordOpenInfoPanelAction(type: InfoPanelType, location: openInfoPanelLocation) {
-  const props = {
-    type,
-    location,
-  }
-  mixpanel.track('openInfoPanel', props)
+export function recordOpenInfoPanelAction(_type: InfoPanelType, _location: openInfoPanelLocation) {
+  // no-op
 }
 
 export type shareType = 'open' | 'download'
-export function recordShareAction(type: shareType) {
-  mixpanel.track('share', { type })
+export function recordShareAction(_type: shareType) {
+  // no-op
 }
 
 export type analysisType = 'open'
-export function recordAnalysisAction(type: analysisType) {
-  const props = {
-    type,
-  }
-
-  mixpanel.track('analysis', props)
+export function recordAnalysisAction(_type: analysisType) {
+  // no-op
 }
 
 export type errorBookType = 'open' | 'detail'
-export function recordErrorBookAction(type: errorBookType) {
-  const props = {
-    type,
-  }
-
-  mixpanel.track('error-book', props)
+export function recordErrorBookAction(_type: errorBookType) {
+  // no-op
 }
 
 export type donateCardInfo = {
@@ -65,16 +43,12 @@ export type donateCardInfo = {
   amount: number
 }
 
-export function reportDonateCard(info: donateCardInfo) {
-  const props = {
-    ...info,
-  }
-
-  mixpanel.track('donate-card', props)
+export function reportDonateCard(_info: donateCardInfo) {
+  // no-op
 }
 
 /**
- * mixpanel 单词和章节统计事件
+ * 单词和章节统计事件（已停用）
  */
 export type ModeInfo = {
   modeDictation: boolean
@@ -111,110 +85,23 @@ export type ChapterLogUpload = ModeInfo & {
   countTypo: number
 }
 
-export function useMixPanelWordLogUploader(typingState: TypingState) {
-  const currentChapter = useAtomValue(currentChapterAtom)
-  const { name: dictName } = useAtomValue(currentDictInfoAtom)
-  const isDarkMode = useAtomValue(isOpenDarkModeAtom)
-  const keySoundsConfig = useAtomValue(keySoundsConfigAtom)
-  const phoneticConfig = useAtomValue(phoneticConfigAtom)
-  const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
-  const randomConfig = useAtomValue(randomConfigAtom)
-
-  const wordLogUploader = useCallback(
-    (wordLog: { headword: string; timeStart: string; timeEnd: string; countInput: number; countCorrect: number; countTypo: number }) => {
-      const props: WordLogUpload = {
-        ...wordLog,
-        order: typingState.chapterData.index + 1,
-        chapter: (currentChapter + 1).toString(),
-        wordlist: dictName,
-        modeDictation: !typingState.isWordVisible,
-        modeDark: isDarkMode,
-        modeShuffle: randomConfig.isOpen,
-        enabledKeyboardSound: keySoundsConfig.isOpen,
-        enabledPhotonicsSymbol: phoneticConfig.isOpen,
-        enabledSingleWordLoop: typingState.isLoopSingleWord,
-        pronunciationAuto: pronunciationConfig.isOpen,
-        pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
-      }
-      mixpanel.track('Word', props)
+export function useMixPanelWordLogUploader(_typingState: TypingState) {
+  return useCallback(
+    (_wordLog: { headword: string; timeStart: string; timeEnd: string; countInput: number; countCorrect: number; countTypo: number }) => {
+      // no-op
     },
-    [
-      typingState,
-      currentChapter,
-      dictName,
-      isDarkMode,
-      keySoundsConfig.isOpen,
-      phoneticConfig.isOpen,
-      pronunciationConfig.isOpen,
-      pronunciationConfig.type,
-      randomConfig.isOpen,
-    ],
+    [],
   )
-
-  return wordLogUploader
 }
 
-export function useMixPanelChapterLogUploader(typingState: TypingState) {
-  const currentChapter = useAtomValue(currentChapterAtom)
-  const { name: dictName } = useAtomValue(currentDictInfoAtom)
-  const isDarkMode = useAtomValue(isOpenDarkModeAtom)
-  const keySoundsConfig = useAtomValue(keySoundsConfigAtom)
-  const phoneticConfig = useAtomValue(phoneticConfigAtom)
-  const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
-  const randomConfig = useAtomValue(randomConfigAtom)
-
-  const chapterLogUploader = useCallback(() => {
-    const props: ChapterLogUpload = {
-      timeEnd: getUtcStringForMixpanel(),
-      duration: typingState.timerData.time,
-      countInput: typingState.chapterData.correctCount + typingState.chapterData.wrongCount,
-      countTypo: typingState.chapterData.wrongCount,
-      countCorrect: typingState.chapterData.correctCount,
-      chapter: (currentChapter + 1).toString(),
-      wordlist: dictName,
-      modeDictation: !typingState.isWordVisible,
-      modeDark: isDarkMode,
-      modeShuffle: randomConfig.isOpen,
-      enabledKeyboardSound: keySoundsConfig.isOpen,
-      enabledPhotonicsSymbol: phoneticConfig.isOpen,
-      enabledSingleWordLoop: typingState.isLoopSingleWord,
-      pronunciationAuto: pronunciationConfig.isOpen,
-      pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
-    }
-    mixpanel.track('Chapter', props)
-  }, [
-    typingState,
-    currentChapter,
-    dictName,
-    isDarkMode,
-    keySoundsConfig.isOpen,
-    phoneticConfig.isOpen,
-    pronunciationConfig.isOpen,
-    pronunciationConfig.type,
-    randomConfig.isOpen,
-  ])
-  return chapterLogUploader
+export function useMixPanelChapterLogUploader(_typingState: TypingState) {
+  return useCallback(() => {
+    // no-op
+  }, [])
 }
 
-export function recordDataAction({
-  type,
-  size,
-  wordCount,
-  chapterCount,
-}: {
-  type: 'export' | 'import'
-  size: number
-  wordCount: number
-  chapterCount: number
-}) {
-  const props = {
-    type,
-    size,
-    wordCount,
-    chapterCount,
-  }
-
-  mixpanel.track('dataAction', props)
+export function recordDataAction(_info: { type: 'export' | 'import'; size: number; wordCount: number; chapterCount: number }) {
+  // no-op
 }
 
 export function getUtcStringForMixpanel() {
