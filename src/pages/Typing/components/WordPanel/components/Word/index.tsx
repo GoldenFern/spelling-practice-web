@@ -2,6 +2,7 @@ import type { WordUpdateAction } from '../InputHandler'
 import InputHandler from '../InputHandler'
 import Letter from './Letter'
 import Notation from './Notation'
+import SpellDiff from './SpellDiff'
 import { TipAlert } from './TipAlert'
 import style from './index.module.css'
 import { initialWordState } from './type'
@@ -27,7 +28,7 @@ import { CTRL, getUtcStringForMixpanel } from '@/utils'
 import { useSaveWordRecord } from '@/utils/db'
 import { markSrsFailure, ratingFromAttempt, updateSrsCard } from '@/utils/db/srs'
 import { useAtomValue } from 'jotai'
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useImmer } from 'use-immer'
 
@@ -46,10 +47,32 @@ function renderNote(note: string) {
   )
 }
 
+/**
+ * 本项目定制：单词状态在挂载时同步初始化（WordPanel 按单词重挂载组件），
+ * 避免用 effect 异步重置状态时，抢跑的首个按键被清掉。
+ */
+function createInitialWordState(word: Word): WordState {
+  let headword = ''
+  try {
+    headword = word.name.replace(new RegExp(' ', 'g'), EXPLICIT_SPACE)
+    headword = headword.replace(new RegExp('…', 'g'), '..')
+  } catch (e) {
+    console.error('word.name is not a string', word)
+    headword = ''
+  }
+
+  const newWordState = structuredClone(initialWordState)
+  newWordState.displayWord = headword
+  newWordState.letterStates = new Array(headword.length).fill('normal')
+  newWordState.startTime = getUtcStringForMixpanel()
+  newWordState.randomLetterVisible = headword.split('').map(() => Math.random() > 0.4)
+  return newWordState
+}
+
 export default function WordComponent({ word, onFinish }: { word: Word; onFinish: () => void }) {
   // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state, dispatch } = useContext(TypingContext)!
-  const [wordState, setWordState] = useImmer<WordState>(structuredClone(initialWordState))
+  const [wordState, setWordState] = useImmer<WordState>(() => createInitialWordState(word))
 
   const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
   const isTextSelectable = useAtomValue(isTextSelectableAtom)
@@ -73,27 +96,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const isSubmitMode = wordDictationConfig.isOpen && wordDictationConfig.type === 'firstLetter'
   const [submitResult, setSubmitResult] = useState<'typing' | 'wrong'>('typing')
   const attemptStartedAtRef = useRef(Date.now())
-
-  useEffect(() => {
-    // run only when word changes
-    let headword = ''
-    try {
-      headword = word.name.replace(new RegExp(' ', 'g'), EXPLICIT_SPACE)
-      headword = headword.replace(new RegExp('…', 'g'), '..')
-    } catch (e) {
-      console.error('word.name is not a string', word)
-      headword = ''
-    }
-
-    const newWordState = structuredClone(initialWordState)
-    newWordState.displayWord = headword
-    newWordState.letterStates = new Array(headword.length).fill('normal')
-    newWordState.startTime = getUtcStringForMixpanel()
-    newWordState.randomLetterVisible = headword.split('').map(() => Math.random() > 0.4)
-    setWordState(newWordState)
-    setSubmitResult('typing')
-    attemptStartedAtRef.current = Date.now()
-  }, [word, setWordState])
 
   const updateInput = useCallback(
     (updateAction: WordUpdateAction) => {
@@ -369,7 +371,8 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     }
   }, [wordState.hasWrong, setWordState])
 
-  useEffect(() => {
+  // 本项目定制：在绘制前完成保存与推进，避免"答对后立刻打下一词"丢首键
+  useLayoutEffect(() => {
     if (wordState.isFinished) {
       dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: true })
 
@@ -423,13 +426,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
             <div className="flex flex-col items-center justify-center gap-3">
               {submitResult === 'wrong' ? (
                 <div className="flex flex-col items-center gap-2">
-                  <div
-                    className="flex items-baseline justify-center gap-4 font-mono"
-                    style={{ fontSize: fontSizeConfig.foreignFont.toString() + 'px' }}
-                  >
-                    <span className="text-red-400 line-through decoration-2">{wordState.inputWord || '—'}</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">{wordState.displayWord}</span>
-                  </div>
+                  <SpellDiff expected={wordState.displayWord} actual={wordState.inputWord} />
                   {word.note && (
                     <div className="max-w-2xl text-center text-sm text-gray-500 dark:text-gray-400">{renderNote(word.note)}</div>
                   )}
