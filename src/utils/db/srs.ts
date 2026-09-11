@@ -43,6 +43,11 @@ export async function updateSrsCard(word: string, dict: string, rating: Grade): 
   await db.srsRecords.put(record)
 }
 
+/** 整词提交答错时立即按 Again 排期（短间隔后再次到期）。 */
+export async function markSrsFailure(word: string, dict: string): Promise<void> {
+  await updateSrsCard(word, dict, Rating.Again)
+}
+
 /** 返回词典内所有已到期的记忆卡片，按到期时间升序。 */
 export async function getDueSrsRecords(dict: string): Promise<ISrsRecord[]> {
   const now = new Date()

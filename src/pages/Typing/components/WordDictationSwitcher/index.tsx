@@ -11,7 +11,7 @@ import IconChevronDown from '~icons/tabler/chevron-down'
 
 const wordDictationTypeList: { name: string; type: WordDictationType }[] = [
   {
-    name: '只显示首字母',
+    name: '整词默写（首字母提示）',
     type: 'firstLetter',
   },
   {

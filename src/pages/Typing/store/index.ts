@@ -15,6 +15,7 @@ export const initialState: TypingState = {
     wrongCount: 0,
     wordRecordIds: [],
     userInputLogs: [],
+    retriedWords: [],
   },
   timerData: {
     time: 0,
@@ -46,6 +47,8 @@ export enum TypingStateActionType {
   NEXT_WORD = 'NEXT_WORD',
   LOOP_CURRENT_WORD = 'LOOP_CURRENT_WORD',
   FINISH_CHAPTER = 'FINISH_CHAPTER',
+  // 本项目定制：整词提交模式下答错的单词补练一次
+  REQUEUE_CURRENT_WORD = 'REQUEUE_CURRENT_WORD',
   INCREASE_WRONG_WORD = 'INCREASE_WRONG_WORD',
   SKIP_WORD = 'SKIP_WORD',
   SKIP_2_WORD_INDEX = 'SKIP_2_WORD_INDEX',
@@ -76,6 +79,7 @@ export type TypingStateAction =
     }
   | { type: TypingStateActionType.LOOP_CURRENT_WORD }
   | { type: TypingStateActionType.FINISH_CHAPTER }
+  | { type: TypingStateActionType.REQUEUE_CURRENT_WORD }
   | { type: TypingStateActionType.SKIP_WORD }
   | { type: TypingStateActionType.SKIP_2_WORD_INDEX; newIndex: number }
   | { type: TypingStateActionType.REPEAT_CHAPTER; shouldShuffle: boolean }
@@ -144,6 +148,19 @@ export const typingReducer = (state: TypingState, action: TypingStateAction) => 
       state.isShowSkip = false
       state.chapterData.wordCount += 1
       break
+    case TypingStateActionType.REQUEUE_CURRENT_WORD: {
+      const currentWord = state.chapterData.words[state.chapterData.index]
+      if (!currentWord) break
+      // 同一个单词本轮只补练一次，避免一直答错时队列无限增长
+      if (state.chapterData.retriedWords.includes(currentWord.name)) break
+      state.chapterData.words.push({ ...currentWord })
+      state.chapterData.retriedWords.push(currentWord.name)
+      state.chapterData.userInputLogs.push({
+        ...structuredClone(initialUserInputLog),
+        index: state.chapterData.words.length - 1,
+      })
+      break
+    }
     case TypingStateActionType.FINISH_CHAPTER:
       state.chapterData.wordCount += 1
       state.isTyping = false

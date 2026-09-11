@@ -16,6 +16,8 @@ export type ChapterData = {
   userInputLogs: UserInputLog[]
   // 本章节用户输入的单词的 record id 列表
   wordRecordIds: number[]
+  // 本项目定制：整词提交模式下答错、已追加到队尾等待再练的单词
+  retriedWords: string[]
 }
 
 export type UserInputLog = {

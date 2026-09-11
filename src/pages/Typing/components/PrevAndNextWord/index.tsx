@@ -32,9 +32,12 @@ export default function PrevAndNextWord({ type }: LastAndNextWordProps) {
     if (type === 'prev') return showWord
 
     if (type === 'next') {
-      return !wordDictationConfig.isOpen ? showWord : (showWord || '').replace(/./g, '_')
+      if (!wordDictationConfig.isOpen) return showWord
+      // 整词默写模式不暴露词长，只给首字母提示
+      if (wordDictationConfig.type === 'firstLetter') return (showWord || '').slice(0, 1) + '…'
+      return (showWord || '').replace(/./g, '_')
     }
-  }, [word, currentLanguage, type, wordDictationConfig.isOpen])
+  }, [word, currentLanguage, type, wordDictationConfig.isOpen, wordDictationConfig.type])
 
   return (
     <>

@@ -25,6 +25,9 @@ export type Word = {
   usphone: string
   ukphone: string
   notation?: string
+  // 本项目定制：词典中的易错点提示与形近词
+  note?: string
+  partner?: string
 }
 
 export type WordWithIndex = Word & {

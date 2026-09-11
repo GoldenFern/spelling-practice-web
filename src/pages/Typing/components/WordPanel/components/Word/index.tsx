@@ -15,6 +15,7 @@ import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import {
   currentChapterAtom,
   currentDictInfoAtom,
+  fontSizeConfigAtom,
   isIgnoreCaseAtom,
   isShowAnswerOnHoverAtom,
   isTextSelectableAtom,
@@ -24,13 +25,26 @@ import {
 import type { Word } from '@/typings'
 import { CTRL, getUtcStringForMixpanel } from '@/utils'
 import { useSaveWordRecord } from '@/utils/db'
-import { ratingFromAttempt, updateSrsCard } from '@/utils/db/srs'
+import { markSrsFailure, ratingFromAttempt, updateSrsCard } from '@/utils/db/srs'
 import { useAtomValue } from 'jotai'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useImmer } from 'use-immer'
 
 const vowelLetters = ['A', 'E', 'I', 'O', 'U']
+
+/** 渲染词典 note，`**片段**` 显示为橙色加粗。 */
+function renderNote(note: string) {
+  return note.split('**').map((part, index) =>
+    index % 2 === 1 ? (
+      <strong key={index} className="font-semibold text-orange-500">
+        {part}
+      </strong>
+    ) : (
+      <span key={index}>{part}</span>
+    ),
+  )
+}
 
 export default function WordComponent({ word, onFinish }: { word: Word; onFinish: () => void }) {
   // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
@@ -53,9 +67,12 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
 
   const [showTipAlert, setShowTipAlert] = useState(false)
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
+  const fontSizeConfig = useAtomValue(fontSizeConfigAtom)
 
-  // 本项目定制：首字母默写模式下首字母已给出，打字时自动跳过
-  const givenLetterCount = wordDictationConfig.isOpen && wordDictationConfig.type === 'firstLetter' ? 1 : 0
+  // 本项目定制：整词默写模式（显示首字母提示，无逐字母反馈）
+  const isSubmitMode = wordDictationConfig.isOpen && wordDictationConfig.type === 'firstLetter'
+  const [submitResult, setSubmitResult] = useState<'typing' | 'wrong'>('typing')
+  const attemptStartedAtRef = useRef(Date.now())
 
   useEffect(() => {
     // run only when word changes
@@ -73,10 +90,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     newWordState.letterStates = new Array(headword.length).fill('normal')
     newWordState.startTime = getUtcStringForMixpanel()
     newWordState.randomLetterVisible = headword.split('').map(() => Math.random() > 0.4)
-    if (givenLetterCount > 0 && headword.length > 0) {
-      newWordState.inputWord = headword[0]
-    }
     setWordState(newWordState)
+    setSubmitResult('typing')
+    attemptStartedAtRef.current = Date.now()
   }, [word, setWordState])
 
   const updateInput = useCallback(
@@ -84,6 +100,11 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
       switch (updateAction.type) {
         case 'add':
           if (wordState.hasWrong) return
+          if (isSubmitMode && submitResult !== 'typing') return
+          if (isSubmitMode && updateAction.value === ' ') {
+            updateAction.event.preventDefault()
+            return
+          }
 
           if (updateAction.value === ' ') {
             updateAction.event.preventDefault()
@@ -97,11 +118,18 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
           }
           break
 
+        case 'delete':
+          if (wordState.hasWrong || submitResult !== 'typing') return
+          setWordState((state) => {
+            state.inputWord = state.inputWord.slice(0, Math.max(0, state.inputWord.length - updateAction.length))
+          })
+          break
+
         default:
           console.warn('unknown update type', updateAction)
       }
     },
-    [wordState.hasWrong, setWordState],
+    [isSubmitMode, submitResult, wordState.hasWrong, setWordState],
   )
 
   const handleHoverWord = useCallback((checked: boolean) => {
@@ -136,11 +164,78 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     { enableOnFormTags: true, preventDefault: true },
   )
 
+  const handleSubmit = useCallback(() => {
+    if (!isSubmitMode || wordState.isFinished) return
+
+    if (submitResult === 'wrong') {
+      onFinish()
+      return
+    }
+
+    if (!state.isTyping) return
+
+    const target = wordState.displayWord.trim().toLowerCase()
+    const typed = wordState.inputWord.trim().toLowerCase()
+    if (typed.length === 0) return
+
+    // 首字母已给出，允许输入完整单词，也允许省略首字母
+    const isCorrect = typed === target || (target.length > 1 && typed === target.slice(1))
+
+    if (isCorrect) {
+      const finishedAt = Date.now()
+      setWordState((draft) => {
+        draft.letterStates = draft.letterStates.map(() => 'correct')
+        draft.letterTimeArray = [attemptStartedAtRef.current, finishedAt]
+        draft.isFinished = true
+        draft.endTime = getUtcStringForMixpanel()
+      })
+      dispatch({ type: TypingStateActionType.REPORT_CORRECT_WORD })
+      playHintSound()
+    } else {
+      playBeepSound()
+      dispatch({ type: TypingStateActionType.REPORT_WRONG_WORD, payload: { letterMistake: {} } })
+      dispatch({ type: TypingStateActionType.REQUEUE_CURRENT_WORD })
+      void saveWordRecord({ word: word.name, wrongCount: 1, letterTimeArray: [], letterMistake: {} })
+      void markSrsFailure(word.name, currentDictInfo.id)
+      setSubmitResult('wrong')
+    }
+  }, [
+    currentDictInfo.id,
+    dispatch,
+    isSubmitMode,
+    onFinish,
+    playBeepSound,
+    playHintSound,
+    saveWordRecord,
+    state.isTyping,
+    submitResult,
+    word.name,
+    wordState.displayWord,
+    wordState.inputWord,
+    wordState.isFinished,
+    setWordState,
+  ])
+
+  useHotkeys(
+    'enter',
+    (e) => {
+      if (!isSubmitMode) return
+      e.preventDefault()
+      if (!state.isTyping) {
+        dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: true })
+        return
+      }
+      handleSubmit()
+    },
+    { enableOnFormTags: true, preventDefault: true },
+    [dispatch, handleSubmit, isSubmitMode, state.isTyping],
+  )
+
   useEffect(() => {
-    if (wordState.inputWord.length === givenLetterCount && state.isTyping) {
+    if (wordState.inputWord.length === 0 && state.isTyping) {
       wordPronunciationIconRef.current?.play && wordPronunciationIconRef.current?.play()
     }
-  }, [state.isTyping, wordState.inputWord.length, givenLetterCount, wordPronunciationIconRef.current?.play])
+  }, [state.isTyping, wordState.inputWord.length, wordPronunciationIconRef.current?.play])
 
   const getLetterVisible = useCallback(
     (index: number) => {
@@ -180,6 +275,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   )
 
   useEffect(() => {
+    // 本项目定制：整词提交模式不做逐字母校验，等 Enter 统一判定
+    if (isSubmitMode) return
+
     const inputLength = wordState.inputWord.length
     /**
      * TODO: 当用户输入错误时，会报错
@@ -187,7 +285,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
      * 目前不影响生产环境，猜测是因为开发环境下 react 会两次调用 useEffect 从而展示了这个 warning
      * 但这终究是一个 bug，需要修复
      */
-    if (wordState.hasWrong || inputLength <= givenLetterCount || wordState.displayWord.length === 0) {
+    if (wordState.hasWrong || inputLength === 0 || wordState.displayWord.length === 0) {
       return
     }
 
@@ -209,9 +307,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
         // 完成输入时
         setWordState((state) => {
           state.letterStates[inputLength - 1] = 'correct'
-          if (givenLetterCount > 0) {
-            state.letterStates[0] = 'correct'
-          }
           state.isFinished = true
           state.endTime = getUtcStringForMixpanel()
         })
@@ -255,7 +350,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     if (wordState.hasWrong) {
       const timer = setTimeout(() => {
         setWordState((state) => {
-          state.inputWord = givenLetterCount > 0 && state.displayWord.length > 0 ? state.displayWord[0] : ''
+          state.inputWord = ''
           state.letterStates = new Array(state.letterStates.length).fill('normal')
           state.hasWrong = false
         })
@@ -312,16 +407,52 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
       >
         {['romaji', 'hapin'].includes(currentLanguage) && word.notation && <Notation notation={word.notation} />}
         <div
-          className={`tooltip-info relative w-fit bg-transparent p-0 leading-normal shadow-none dark:bg-transparent ${
-            wordDictationConfig.isOpen ? 'tooltip' : ''
+          className={`relative w-fit bg-transparent p-0 leading-normal shadow-none dark:bg-transparent ${
+            !isSubmitMode && wordDictationConfig.isOpen ? 'tooltip-info tooltip' : ''
           }`}
-          data-tip="按 Tab 快捷键显示完整单词"
+          data-tip={isSubmitMode ? undefined : '按 Tab 快捷键显示完整单词'}
         >
-          <div className={`flex items-center ${isTextSelectable && 'select-all'} justify-center ${wordState.hasWrong ? style.wrong : ''}`}>
-            {wordState.displayWord.split('').map((t, index) => {
-              return <Letter key={`${index}-${t}`} letter={t} visible={getLetterVisible(index)} state={wordState.letterStates[index]} />
-            })}
-          </div>
+          {isSubmitMode ? (
+            <div className="flex flex-col items-center justify-center gap-3">
+              {submitResult === 'wrong' ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div
+                    className="flex items-baseline justify-center gap-4 font-mono"
+                    style={{ fontSize: fontSizeConfig.foreignFont.toString() + 'px' }}
+                  >
+                    <span className="text-red-400 line-through decoration-2">{wordState.inputWord || '—'}</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">{wordState.displayWord}</span>
+                  </div>
+                  {word.note && (
+                    <div className="max-w-2xl text-center text-sm text-gray-500 dark:text-gray-400">{renderNote(word.note)}</div>
+                  )}
+                  <div className="text-xs text-gray-400">答错了，这个词稍后会再出现；按 Enter 继续</div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className="flex items-baseline justify-center gap-3 font-mono"
+                    style={{ fontSize: fontSizeConfig.foreignFont.toString() + 'px' }}
+                  >
+                    <span className="select-none text-indigo-400/80">{wordState.displayWord.slice(0, 1)}</span>
+                    <span className="min-w-[10rem] border-b-2 border-indigo-300 pb-1 text-left dark:border-indigo-700">
+                      {wordState.inputWord}
+                      {state.isTyping && <span className="animate-pulse text-indigo-400">|</span>}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">输入完整单词（首字母可省略），按 Enter 提交</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`flex items-center ${isTextSelectable && 'select-all'} justify-center ${wordState.hasWrong ? style.wrong : ''}`}
+            >
+              {wordState.displayWord.split('').map((t, index) => {
+                return <Letter key={`${index}-${t}`} letter={t} visible={getLetterVisible(index)} state={wordState.letterStates[index]} />
+              })}
+            </div>
+          )}
           {pronunciationIsOpen && (
             <div className="absolute -right-12 top-1/2 h-9 w-9 -translate-y-1/2 transform ">
               <Tooltip content={`快捷键${CTRL} + J`}>
