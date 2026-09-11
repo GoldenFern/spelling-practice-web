@@ -18,18 +18,23 @@
 1. **词库**：只注册 `雅思听力拼写练习`（9 套 450 词）。词典 JSON 不提交，由主仓库
    `scripts/build_webapp_dict.py` 从 `data/words.json` 生成到 `public/dicts/`。
 2. **章节**：`CHAPTER_LENGTH` 50（一套一章），界面显示"第 N 套"。
-3. **默写模式**：新增 `firstLetter`（只显示首字母），并设为默认开启；首字母已给出，打字时自动
-   跳过（打错重打也会自动补回）；移除鼠标悬停显示答案，改为按住 Tab 临时提示（设置项同步改名，
-   开关仍可关闭提示）。
-4. **发音兜底**：有道音频加载失败或断网时，自动改用浏览器内置语音（Web Speech API）。
-5. **去统计**：移除 Mixpanel / Vercel Analytics 上报，保证离线可用（`src/utils/mixpanel.ts`、
+3. **整词默写模式**：`firstLetter` 模式改为"整词提交"：
+   - 题面只显示首字母提示，不显示任何下划线占位（不暴露词长），没有逐字母实时反馈；
+   - 输入整词后按 Enter 统一判定，首字母可省略；Backspace 可删字符，第一个字母即开始练习；
+   - 第一次判定正确即完成该词本轮；答错时展示正确答案与易错点提示，该词自动追加到本轮
+     队尾补练一次（每词最多一次），并按 FSRS `Again` 立即排期（`markSrsFailure`）；
+   - 其他默写模式（全部隐藏/元音/辅音/随机）仍保留上游的逐字母校验逻辑。
+4. **提示方式**：移除鼠标悬停显示答案；旧模式改为按住 Tab 临时提示（设置项同步改名）。
+5. **词长隐藏**：下一个词的预览在整词模式下只显示首字母 + 省略号。
+6. **发音兜底**：有道音频加载失败或断网时，自动改用浏览器内置语音（Web Speech API）。
+7. **去统计**：移除 Mixpanel / Vercel Analytics 上报，保证离线可用（`src/utils/mixpanel.ts`、
    `src/utils/trackEvent.ts`、`src/index.tsx`）。
-6. **智能复习**：集成 `ts-fsrs`，`srsRecords` 表（Dexie v4）保存记忆卡片；首页脑图按钮按
+8. **智能复习**：集成 `ts-fsrs`，`srsRecords` 表（Dexie v4）保存记忆卡片；首页脑图按钮按
    到期时间生成复习队列，评分由拼写错误数与用时映射（`src/utils/db/srs.ts`）。
-7. **一键启动**：`launcher/launcher.py` + `launcher/install_shortcut.ps1`，桌面快捷方式双击
+9. **一键启动**：`launcher/launcher.py` + `launcher/install_shortcut.ps1`，桌面快捷方式双击
    即用；固定端口 8756，SPA fallback，空闲 90 分钟自动退出。
-8. **版本号**：根目录 `VERSION` + Vite `APP_VERSION` 注入页脚。
-9. **pre-commit**：Windows 无全局 yarn，改用 `corepack yarn run lint-staged`。
+10. **版本号**：根目录 `VERSION` + Vite `APP_VERSION` 注入页脚。
+11. **pre-commit**：Windows 无全局 yarn，改用 `corepack yarn run lint-staged`。
 
 ## 同步上游
 
