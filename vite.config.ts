@@ -14,6 +14,7 @@ export default defineConfig(async ({ mode }) => {
   const latestCommitHash = await new Promise<string>((resolve) => {
     return getLastCommit((err, commit) => (err ? 'unknown' : resolve(commit.shortHash)))
   })
+  const appVersion = (await fs.readFile(path.resolve(__dirname, 'VERSION'), 'utf-8')).trim()
   return {
     plugins: [
       react({ babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] } }),
@@ -39,6 +40,7 @@ export default defineConfig(async ({ mode }) => {
     define: {
       REACT_APP_DEPLOY_ENV: JSON.stringify(process.env.REACT_APP_DEPLOY_ENV),
       LATEST_COMMIT_HASH: JSON.stringify(latestCommitHash + (process.env.NODE_ENV === 'production' ? '' : ' (dev)')),
+      APP_VERSION: JSON.stringify(appVersion),
     },
     resolve: {
       alias: {

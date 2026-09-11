@@ -1,6 +1,6 @@
 {
-  "name": "qwerty-learner",
-  "version": "0.1.0",
+  "name": "spelling-practice-web",
+  "version": "1.0.0",
   "private": true,
   "homepage": ".",
   "dependencies": {
