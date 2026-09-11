@@ -16,7 +16,7 @@ import Header from '@/components/Header'
 import Tooltip from '@/components/Tooltip'
 import { idDictionaryMap } from '@/resources/dictionary'
 import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
-import { IsDesktop, isLegal } from '@/utils'
+import { IsDesktop } from '@/utils'
 import { useSaveChapterRecord } from '@/utils/db'
 import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
@@ -78,19 +78,8 @@ const App: React.FC = () => {
     state.chapterData.words?.length > 0 ? setIsLoading(false) : setIsLoading(true)
   }, [state.chapterData.words])
 
-  useEffect(() => {
-    if (!state.isTyping) {
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (!isLoading && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
-          e.preventDefault()
-          dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: true })
-        }
-      }
-      window.addEventListener('keydown', onKeyDown)
-
-      return () => window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [state.isTyping, isLoading, dispatch])
+  // 本项目定制：开始/继续练习改由 KeyEventHandler 统一处理（按键同时开始并录入），
+  // 避免全局监听器先触发重渲染、导致第一个按键丢失。
 
   useEffect(() => {
     if (words !== undefined) {
