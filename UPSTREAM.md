@@ -18,8 +18,9 @@
 1. **词库**：只注册 `雅思听力拼写练习`（9 套 450 词）。词典 JSON 不提交，由主仓库
    `scripts/build_webapp_dict.py` 从 `data/words.json` 生成到 `public/dicts/`。
 2. **章节**：`CHAPTER_LENGTH` 50（一套一章），界面显示"第 N 套"。
-3. **默写模式**：新增 `firstLetter`（只显示首字母），并设为默认开启；移除鼠标悬停显示答案，
-   改为按住 Tab 临时提示（设置项同步改名，开关仍可关闭提示）。
+3. **默写模式**：新增 `firstLetter`（只显示首字母），并设为默认开启；首字母已给出，打字时自动
+   跳过（打错重打也会自动补回）；移除鼠标悬停显示答案，改为按住 Tab 临时提示（设置项同步改名，
+   开关仍可关闭提示）。
 4. **发音兜底**：有道音频加载失败或断网时，自动改用浏览器内置语音（Web Speech API）。
 5. **去统计**：移除 Mixpanel / Vercel Analytics 上报，保证离线可用（`src/utils/mixpanel.ts`、
    `src/utils/trackEvent.ts`、`src/index.tsx`）。
