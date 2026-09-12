@@ -6,6 +6,9 @@ import { mergeLetterMistake } from '@/utils/db/utils'
 import shuffle from '@/utils/shuffle'
 import { createContext } from 'react'
 
+/** 本项目定制：同一个单词在一次会话内最多补练 5 次（含首次最多出现 6 次）。 */
+export const MAX_WORD_RETRIES = 5
+
 export const initialState: TypingState = {
   chapterData: {
     words: [],
@@ -15,7 +18,7 @@ export const initialState: TypingState = {
     wrongCount: 0,
     wordRecordIds: [],
     userInputLogs: [],
-    retriedWords: [],
+    retryCounts: {},
   },
   timerData: {
     time: 0,
@@ -47,7 +50,7 @@ export enum TypingStateActionType {
   NEXT_WORD = 'NEXT_WORD',
   LOOP_CURRENT_WORD = 'LOOP_CURRENT_WORD',
   FINISH_CHAPTER = 'FINISH_CHAPTER',
-  // 本项目定制：整词提交模式下答错的单词补练一次
+  // 本项目定制：整词提交模式下答错的单词补练若干次
   REQUEUE_CURRENT_WORD = 'REQUEUE_CURRENT_WORD',
   INCREASE_WRONG_WORD = 'INCREASE_WRONG_WORD',
   SKIP_WORD = 'SKIP_WORD',
@@ -151,10 +154,11 @@ export const typingReducer = (state: TypingState, action: TypingStateAction) => 
     case TypingStateActionType.REQUEUE_CURRENT_WORD: {
       const currentWord = state.chapterData.words[state.chapterData.index]
       if (!currentWord) break
-      // 同一个单词本轮只补练一次，避免一直答错时队列无限增长
-      if (state.chapterData.retriedWords.includes(currentWord.name)) break
+      // 同一个单词每答错一次就补练一次，直到答对或达到补练上限，避免队列无限增长
+      const retryCount = state.chapterData.retryCounts[currentWord.name] ?? 0
+      if (retryCount >= MAX_WORD_RETRIES) break
       state.chapterData.words.push({ ...currentWord })
-      state.chapterData.retriedWords.push(currentWord.name)
+      state.chapterData.retryCounts[currentWord.name] = retryCount + 1
       state.chapterData.userInputLogs.push({
         ...structuredClone(initialUserInputLog),
         index: state.chapterData.words.length - 1,

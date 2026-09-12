@@ -12,7 +12,7 @@ import type { WordPronunciationIconRef } from '@/components/WordPronunciationIco
 import { WordPronunciationIcon } from '@/components/WordPronunciationIcon'
 import { EXPLICIT_SPACE } from '@/constants'
 import useKeySounds from '@/hooks/useKeySounds'
-import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
+import { MAX_WORD_RETRIES, TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import {
   currentChapterAtom,
   currentDictInfoAtom,
@@ -95,6 +95,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   // 本项目定制：整词默写模式（显示首字母提示，无逐字母反馈）
   const isSubmitMode = wordDictationConfig.isOpen && wordDictationConfig.type === 'firstLetter'
   const [submitResult, setSubmitResult] = useState<'typing' | 'wrong'>('typing')
+  const [willRetry, setWillRetry] = useState(true)
   const attemptStartedAtRef = useRef(Date.now())
 
   const updateInput = useCallback(
@@ -202,6 +203,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
       playHintSound()
     } else {
       playBeepSound()
+      setWillRetry((state.chapterData.retryCounts[word.name] ?? 0) < MAX_WORD_RETRIES)
       dispatch({ type: TypingStateActionType.REPORT_WRONG_WORD, payload: { letterMistake: {} } })
       dispatch({ type: TypingStateActionType.REQUEUE_CURRENT_WORD })
       void saveWordRecord({ word: word.name, wrongCount: 1, letterTimeArray: [], letterMistake: {} })
@@ -216,6 +218,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     playBeepSound,
     playHintSound,
     saveWordRecord,
+    state.chapterData.retryCounts,
     state.isTyping,
     submitResult,
     word.name,
@@ -430,7 +433,9 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
                   {word.note && (
                     <div className="max-w-2xl text-center text-sm text-gray-500 dark:text-gray-400">{renderNote(word.note)}</div>
                   )}
-                  <div className="text-xs text-gray-400">答错了，这个词稍后会再出现；按 Enter 继续</div>
+                  <div className="text-xs text-gray-400">
+                    {willRetry ? '答错了，这个词稍后会再出现；按 Enter 继续' : '答错了，已达补练上限；按 Enter 继续'}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3">
